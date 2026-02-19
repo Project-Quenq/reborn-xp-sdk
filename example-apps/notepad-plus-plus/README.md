@@ -8,12 +8,11 @@ The Notepad++ app is a complete, feature-rich tool that demonstrates the full po
 This isn't just an example. Notepad++ is a complete application with features designed to make development inside Reborn XP a professional experience:
 *   **Syntax Highlighting:** Full support for JavaScript, HTML, CSS, and JSON.
 *   **VFS Integration:** Complete Create, Read, and Save functionality. You can open, edit, and save files directly on any virtual drives.
-*   **State Persistence:** The editor remembers your preferred theme (Light/Dark) and word wrap settings between sessions using `localStorage`.
+*   **State Persistence:** The editor remembers your preferred theme (Light/Dark) and word wrap settings between sessions using `localStorage`.    
 *   **Context-Aware Launching:** The app correctly handles being launched directly (showing an untitled file) and via "Open With" (loading the selected file).
 
 ### A Premier SDK Example
 As the flagship example in this SDK, the source code (`notepad-plus-plus.js`) is the best place to learn advanced concepts:
-*   **Bundling Assets:** The app's `.zip` bundle includes its own assets: the core Ace Editor library (`ace.js`) and several theme and language mode files.
-*   **Dynamic Script Loading:** It shows the professional method for loading external JavaScript libraries from the app's installation folder using `dm.getVfsUrl()`.
-*   **Dependency Management:** The code correctly waits for the core `ace.js` library to load *before* initializing the editor, demonstrating how to handle asynchronous dependencies.
-*   **Resource Cleanup:** It properly removes its dynamically loaded scripts from the main document when the app window is closed.
+*   **Fixing Touch/Zoom Issues with an `<iframe>`:** To solve mouse/touch coordinate issues on devices using the OS's `zoom` feature, Notepad++ runs its editor inside an isolated `<iframe>`. This is the recommended pattern for any app that uses a `<canvas>` or a complex third-party UI library.
+*   **Advanced Script Loading (Iframe Injection):** Instead of using `<script src="...">`, which can fail inside dynamic iframes, this app reads its library files from the VFS as text and **injects them directly** into the iframe's `<head>`. This is a robust, network-independent pattern for loading dependencies.
+*   **Resource Management:** It demonstrates how to manage state and communication between the main app window and the `<iframe>` that contains the core functionality.

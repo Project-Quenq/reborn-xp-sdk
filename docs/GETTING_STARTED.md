@@ -7,8 +7,9 @@ Welcome, developer! This is the definitive guide to creating, testing, and runni
 2.  [Setting Up Your Workspace](#step-1-setting-up-your-workspace)
 3.  [**Example 1: Creating a Local Webview App**](#example-1-creating-a-local-webview-app)
 4.  [**Example 2: Creating a Custom API App**](#example-2-creating-a-custom-api-app)
-5.  [Understanding the Test Launcher vs. Production](#understanding-the-test-launcher-vs-production)
-6.  [Next Steps](#next-steps)
+5.  [**Advanced Topic: Handling Complex UIs and Touch Issues**](#advanced-topic-handling-complex-uis-and-touch-issues)
+6.  [Understanding the Test Launcher vs. Production](#understanding-the-test-launcher-vs-production)     
+7.  [Next Steps](#next-steps)
 
 ---
 
@@ -22,7 +23,7 @@ The official workflow is to build and test your application directly inside Rebo
 
 First, create a dedicated, organized folder for your projects.
 
-1.  **Install Notepad++:** Open `Start Menu` -> `All Programs` -> `Quenq App Market` and install **Notepad++**. This is the recommended IDE for Reborn XP development.
+1.  **Install Notepad++:** Open `Start Menu` -> `All Programs` -> `App Market` and install **Notepad++**. This is the recommended IDE for Reborn XP development.
 2.  **Create a Dev Folder:** Open `My Computer` -> `D:` drive. Create a new folder named `dev`. This is where all your projects will live.
 
 ---
@@ -87,6 +88,29 @@ Your project folder should now contain three files: `music-player.js`, `player-l
 
 ---
 
+## Advanced Topic: Handling Complex UIs and Touch Issues
+
+The Reborn XP interface uses a non-standard `zoom` property on mobile devices to scale the UI. While this works for native components, it can cause problems for complex third-party libraries/canvases (such as games) that rely on precise mouse/touch coordinates.
+
+**If your app uses a `<canvas>` or seems to have misaligned clicks on mobile, the solution is to run your app's core UI inside an `<iframe>`.**
+
+The `<iframe>` isolates your app's document, shielding it from the OS's `zoom` property and ensuring all coordinates are 1:1.
+
+*   **For a complete example, see the `notepad-plus-plus` app.** It demonstrates how to load a complex library (Ace Editor) into an `<iframe>` by reading the script files from the VFS and injecting them directly, which avoids common network errors.
+*   **For a gaming example, see the `swf-wrapper` app.** It shows how to load Ruffle and a game file into an `<iframe>` for perfect touch controls.
+
+### Adding Mobile Controls (Global Virtual Gamepad)
+For games that run in an isolated `<iframe>` but require keyboard input, Reborn XP provides a global `SystemGamepad` API. This works automatically with whichever window is currently focused.
+
+1.  **Show the Gamepad:** Call `window.SystemGamepad.show()` after your game loads. This will display a virtual D-Pad and Action button on touch devices.
+2.  **Hide on Close:** Always call `window.SystemGamepad.hide()` when your app window is closed.
+
+This gamepad API is designed for flash games that rely on simple directional and action inputs, but it can be used for any app that needs basic virtual controls on mobile. It will automatically show the gamepad if the user is on a touch device, and hide it if they are on desktop. You can also ship your custom gamepad in your game if it uses more than arrow keys and space, and restrict it to touch devices using `const isTouch = ('ontouchstart' in window)`.
+
+Check the `swf-wrapper` example to see this API in action.
+
+---
+
 ## Understanding the Test Launcher vs. Production
 
 It is critical to understand the difference between your temporary `.exe` test launcher and how your app will work when published on the App Market.
@@ -94,26 +118,27 @@ It is critical to understand the difference between your temporary `.exe` test l
 ### For Testing: The `.exe` Launcher
 The `.exe` file you create on your desktop is a **development tool**. You have to manually provide all the context your app needs to run:
 *   You tell it which `.js` file to load.
-*   You **manually provide the `installPath`** so your app can find its assets (like `player-logic.js`).
-*   You **manually provide the `icon` path** for both the launcher itself and for the app's window.
+*   You **manually provide the `installPath`** so your app can find its assets (like `player-logic.js`). 
+*   You **manually provide the `icon` path** for both the launcher itself and for the app's window.      
 
 ### For Production: The App Market Installer
-When you submit your app to the **[App Market](https://github.com/Quenq-Systems/app-market)**, the process is automated and much simpler for the end-user.
+When you submit your app to the **[App Market](https://github.com/Project-Quenq/app-market)**, the process is automated and much simpler for the end-user.
 
 1.  You provide your `.zip` bundle and a separate `icon.png` to the market repository.
 2.  When a user clicks "Install," the Reborn XP installer handles everything **automatically**:
     *   It creates the installation folder (e.g., `C:/Program Files/MyMusicPlayer/`).
     *   It extracts all the files from your bundle into that folder.
-    *   It downloads the icon you provided to the market and saves it inside the installation folder.
-    *   It generates the final `.exe` launcher, shortcuts on the desktop, and Start Menu entries.
-    *   It **automatically** injects the correct `installPath` and `icon` path into the launch command.
+    *   It downloads the icon you provided to the market and saves it inside the installation folder.    
+    *   It generates the final `.exe` launcher, shortcuts on the desktop, and Start Menu entries.        
+    *   It **automatically** injects the correct `installPath` and `icon` path into the launch command.  
 
 **In summary: You use the `.exe` launcher to *simulate* the environment that the App Market will create for you in production.**
 
 ---
 
 ## Next Steps
+
 You now have a complete, professional workflow for building and testing applications.
 *   Dive into the **[API Reference](./API_REFERENCE.md)** for all available functions.
 *   Browse the **[UI Component Gallery](./UI_COMPONENTS.md)** to style your app.
-*   When your app is ready, learn how to **[Publish to the App Market](https://github.com/Quenq-Systems/app-market)**.
+*   When your app is ready, learn how to **[Publish to the App Market](https://github.com/Project-Quenq/app-market)**.

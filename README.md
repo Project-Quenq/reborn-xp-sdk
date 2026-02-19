@@ -21,7 +21,7 @@ The best place to begin is our comprehensive documentation. It contains everythi
 ## Publishing Your App
 Once your application is complete and tested, you can submit it to the official **Reborn XP App Market**.
 
-➡️ **[Learn How to Publish Your App](https://github.com/Quenq-Systems/app-market)**
+➡️ **[Learn How to Publish Your App](https://github.com/Project-Quenq/app-market)**
 
 ## License
 The contents of this SDK are provided under the **MIT License**.

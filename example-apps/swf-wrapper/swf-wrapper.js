@@ -1,88 +1,130 @@
-(function() {
-    // The HTML template is simple: a container for the Ruffle player.
-    // A black background is typical for Flash content.
-    const windowTemplate = `
+(function () {
+  const windowTemplate = `
         <appcontentholder style="background-color: #000; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-            <div id="ruffle-container" style="width: 100%; height: 100%;"></div>
+            <iframe id="ruffle-iframe" style="width: 100%; height: 100%; border: none;"></iframe>
         </appcontentholder>
     `;
 
-    registerApp({
-        _template: null,
-        
-        setup: async function() {
-            this._template = document.createElement("template");
-            this._template.innerHTML = windowTemplate;
-        },
-        
-        start: async function(options) {
-            const installPath = options.installPath;
-            if (!installPath) {
-                dialogHandler.spawnDialog({ icon: 'error', title: 'Error', text: 'This app must be installed to locate its files.' });
-                return;
+  registerApp({
+    _template: null,
+    _currentBlobUrl: null,
+
+    setup: async function () {
+      this._template = document.createElement("template");
+      this._template.innerHTML = windowTemplate;
+    },
+
+    start: async function (options) {
+      const installPath = options.installPath;
+      if (!installPath) {
+        dialogHandler.spawnDialog({
+          icon: "error",
+          title: "Error",
+          text: "This app must be installed to locate its files.",
+        });
+        return;
+      }
+
+      const windowContents =
+        this._template.content.firstElementChild.cloneNode(true);
+      const hWnd = wm.createNewWindow("swf-wrapper", windowContents);
+
+      // Developers should change these values to match their game.
+      wm.setCaption(hWnd, "Bubble Trouble");
+      wm.setSize(hWnd, 550, 400); // Default Flash game size
+
+      if (options.icon) {
+        wm.setIcon(hWnd, options.icon);
+      }
+
+      const iframe = windowContents.querySelector("#ruffle-iframe");
+
+      try {
+        // Initialize the iframe and wait for it to be ready
+        await new Promise((resolve) => {
+          iframe.onload = resolve;
+          iframe.srcdoc = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <style>body { margin: 0; overflow: hidden; }</style>
+                            <script src="/res/js/ruffle/ruffle.js"></script>
+                        </head>
+                        <body></body>
+                        </html>
+                    `;
+        });
+
+        // Wait for the Ruffle script inside the iframe to load
+        await new Promise((resolve, reject) => {
+          let attempts = 0;
+          const interval = setInterval(() => {
+            if (iframe.contentWindow && iframe.contentWindow.RufflePlayer) {
+              clearInterval(interval);
+              resolve();
+            } else if (attempts > 50) {
+              clearInterval(interval);
+              reject(
+                new Error("Ruffle player did not load inside the iframe."),
+              );
             }
+            attempts++;
+          }, 100);
+        });
 
-            const windowContents = this._template.content.firstElementChild.cloneNode(true);
-            const hWnd = wm.createNewWindow("swf-wrapper", windowContents);
-            
-            // Developers should change these values to match their game.
-            wm.setCaption(hWnd, "Bubble Trouble");
-            wm.setSize(hWnd, 550, 400); // Default Flash game size
-            
-            if (options.icon) {
-                wm.setIcon(hWnd, options.icon);
-            }
+        const ruffle = iframe.contentWindow.RufflePlayer.newest();
+        const player = ruffle.createPlayer();
+        iframe.contentDocument.body.appendChild(player);
 
-            const ruffleContainer = windowContents.querySelector('#ruffle-container');
-            
-            // Helper function to dynamically load the main OS Ruffle script.
-            // This is a professional pattern: the app doesn't bundle Ruffle itself,
-            // it uses the version provided by the OS.
-            const loadRuffleScript = () => {
-                return new Promise((resolve, reject) => {
-                    // Check if Ruffle is already loaded by another app to prevent conflicts.
-                    if (window.RufflePlayer) {
-                        return resolve();
-                    }
-                    const script = document.createElement('script');
-                    script.id = 'ruffle-runtime'; // Give it an ID to track it
-                    script.src = '/res/js/ruffle/ruffle.js'; // Absolute path to the OS's Ruffle
-                    script.onload = resolve;
-                    script.onerror = reject;
-                    document.head.appendChild(script);
-                });
-            };
+        const swfPath = dm.join(installPath, "game.swf");
 
-            try {
-                // Wait for the Ruffle script to be loaded and ready.
-                await loadRuffleScript();
+        // Read the SWF file as a Blob and create a URL for it.
+        // This bypasses any network/VFS issues inside the iframe.
+        const node = await dm.open(swfPath);
+        if (!node || !node.content)
+          throw new Error("'game.swf' not found or is empty.");
 
-                // Now that Ruffle is loaded, we can initialize it.
-                const ruffle = window.RufflePlayer.newest();
-                const player = ruffle.createPlayer();
-                ruffleContainer.appendChild(player);
+        if (this._currentBlobUrl) URL.revokeObjectURL(this._currentBlobUrl);
+        this._currentBlobUrl = URL.createObjectURL(node.content);
 
-                // This is the core logic: construct the path to the SWF file
-                // that the developer MUST include in their bundle.
-                const swfPath = dm.join(installPath, 'game.swf');
-                
-                // Get a servable URL from the VFS Web Server.
-                const swfUrl = dm.getVfsUrl(swfPath);
+        player.load({ url: this._currentBlobUrl });
 
-                // Load the game into the player.
-                player.load({ url: swfUrl });
-
-            } catch (error) {
-                dialogHandler.spawnDialog({ icon: 'error', title: 'Flash Error', text: 'Could not load the Ruffle player or the game file.' });
-                wm.closeWindow(hWnd);
-                return;
-            }
-
-            // Cleanup: When this app's window closes, we don't remove the Ruffle script,
-            // as other SWF apps might still be using it. Reborn XP handles the main
-            // script tag in its index.html.
-
-            return hWnd;
+        // OPTIONAL: GLOBAL VIRTUAL GAMEPAD
+        // If your game requires keyboard controls (Arrows/Space),
+        // enable the system gamepad overlay.
+        if (window.SystemGamepad) {
+          window.SystemGamepad.show();
         }
-    });
+
+      } catch (error) {
+        dialogHandler.spawnDialog({
+          icon: "error",
+          title: "Flash Error",
+          text: `Could not load the game: ${error.message}`,
+        });
+        // Hide gamepad if loading failed
+        if (window.SystemGamepad) window.SystemGamepad.hide();
+        wm.closeWindow(hWnd);
+        return;
+      }
+
+      wm._windows[hWnd].addEventListener(
+        "wm:windowClosed",
+        () => {
+          // Hide the gamepad overlay when the app is closed
+          if (window.SystemGamepad) {
+            window.SystemGamepad.hide();
+          }
+
+          if (this._currentBlobUrl) {
+            URL.revokeObjectURL(this._currentBlobUrl);
+            this._currentBlobUrl = null;
+          }
+        },
+        { once: true },
+      );
+
+      return hWnd;
+    },
+  });
 })();
